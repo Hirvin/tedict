@@ -41,6 +41,7 @@ class frames():
         f.close()
         self.list_frames = []
         self.get_frame()
+        self.Index = 0
 
     def get_frame(self):
         self.text = self.text.split("\n")
@@ -68,7 +69,17 @@ class frames():
                     continue
 
     def pop(self):
-        return self.list_frames.pop(0)
+        if self.Index > len(self.list_frames):
+            return "", ""
+
+        val1 = self.list_frames[self.Index]
+        val2 = self.list_frames[self.Index + 1]
+        self.Index = self.Index + 2
+        return val1, val2
+
+    def reset_index(self):
+        self.Index = 0
+
 
     def print_frames(self):
         for f in self.list_frames:

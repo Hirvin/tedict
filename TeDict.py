@@ -14,6 +14,9 @@ from PyQt5.QtMultimediaWidgets import QVideoWidget
 # my imports
 import MyPaquets.subtitles as sub
 
+import PyQt5.QtGui as QtGui
+
+
 # My definitions
 MY_PATH = "/home/lhvelasc/Documentos/MisProyectos/Tedict/"
 SUB_PATH = "Subtitles/sub.srt"
@@ -33,21 +36,9 @@ class MainWindow(QMainWindow):
         self.bottom_layout = QHBoxLayout()
 
         # crear menu de los subtitulos
-        self.sub_HBox   = QHBoxLayout()
-        self.sub_lab1_HBox = QHBoxLayout()
-        self.sub_lab2_HBox = QHBoxLayout()
-
-        self.sub_VBox   = QVBoxLayout()
-        #self.label_sub1 = QLabel()
-        self.labels_sub1 = self.create_sub_labels(MAX_NUM_LAB_SUB)
-        self.labels_sub2 = self.create_sub_labels(MAX_NUM_LAB_SUB)
-
-        self.prev_button = QPushButton("Prev", self)
-        self.next_button = QPushButton("Next", self)
-        self.sub_lab1_spacer_left  = QSpacerItem(0, 0, QSizePolicy.MinimumExpanding, QSizePolicy.Minimum)
-        self.sub_lab1_spacer_rigth = QSpacerItem(0, 0, QSizePolicy.MinimumExpanding, QSizePolicy.Minimum)
-        self.sub_lab2_spacer_left  = QSpacerItem(0, 0, QSizePolicy.MinimumExpanding, QSizePolicy.Minimum)
-        self.sub_lab2_spacer_rigth = QSpacerItem(0, 0, QSizePolicy.MinimumExpanding, QSizePolicy.Minimum)
+        self.subitles_layout   = QHBoxLayout()
+        self.create_sub_layout(self.subitles_layout)
+        
 
         
         # time stuff
@@ -65,7 +56,7 @@ class MainWindow(QMainWindow):
 
         # inicializar subtitulos
         self.list_frames = sub.frames(MY_PATH + SUB_PATH)
-        self.frame = self.list_frames.pop()
+        self.frame1, self.frame2 = self.list_frames.pop()
         
         # Control de reproducción de video de Qt.
         self.video_widget = QVideoWidget(self)
@@ -98,7 +89,8 @@ class MainWindow(QMainWindow):
         self.layout.addWidget(self.video_widget)
         self.layout.addLayout(self.bottom_layout)
         self.layout.addLayout(self.time_layout)
-        self.layout.addLayout(self.sub_HBox)
+        self.layout.addWidget(self.seek_slider)
+        self.layout.addLayout(self.subitles_layout)
 
 
         self.bottom_layout.addWidget(self.play_button)
@@ -110,39 +102,14 @@ class MainWindow(QMainWindow):
         self.time_layout.addWidget(self.label_mi)
         self.time_layout.addWidget(self.label_end)
 
-        self.layout.addWidget(self.seek_slider)
-
-        # LLenar Menu de subtitulos
-        self.sub_HBox.addWidget(self.prev_button)
-        self.sub_HBox.addLayout(self.sub_VBox)
-        self.sub_HBox.addWidget(self.next_button)
-        self.sub_VBox.addLayout(self.sub_lab1_HBox)
-        self.sub_VBox.addLayout(self.sub_lab2_HBox)
-
-        # subtitulos parte 1
-        self.sub_lab1_HBox.addSpacerItem(self.sub_lab1_spacer_left)
-        #self.sub_lab1_HBox.addWidget(self.label_sub1)
-        self.add_lab_widget(self.sub_lab1_HBox, self.labels_sub1)
-        self.sub_lab1_HBox.addSpacerItem(self.sub_lab1_spacer_rigth)
-        # subtitulos parte 2 
         
-        self.sub_lab2_HBox.addSpacerItem(self.sub_lab2_spacer_left)
-        self.add_lab_widget(self.sub_lab2_HBox, self.labels_sub2)
-        self.sub_lab2_HBox.addSpacerItem(self.sub_lab2_spacer_rigth)
-  
 
         
         #self.set_sub_text(self.labels_sub2, self.frame.txt)
-        self.sub_text_lab2 = self.frame.txt
+        self.sub_text_lab1 = self.frame1.txt
+        self.sub_text_lab2 = self.frame2.txt
 
-        # setear los tamanos adecuados de cada item del meu
-        self.sub_lab2_HBox.setSpacing(0)
-        self.sub_lab1_HBox.setSpacing(0)
-        self.prev_button.setMaximumSize(50, 50)
-        self.next_button.setMaximumSize(50, 50)
-
-
-        
+              
         # Conectar los eventos con sus correspondientes funciones.
         self.play_button.clicked.connect(self.play_clicked)
         self.stop_button.clicked.connect(self.stop_clicked)
@@ -160,7 +127,57 @@ class MainWindow(QMainWindow):
         # Reproducir el video.
         self.media_player.play()
 
-    
+    def create_sub_layout(self, layout):
+        # crear layout para subtitulos
+        self.sub_lab1_HBox = QHBoxLayout()
+        self.sub_lab2_HBox = QHBoxLayout()
+        self.sub_VBox      = QVBoxLayout()
+
+        self.test_label = QLabel()
+        self.test_txt_label = ""
+        self.test_label.setText(self.test_txt_label)
+        
+        #crear labels
+        self.labels_sub1 = self.create_sub_labels(MAX_NUM_LAB_SUB)
+        self.labels_sub2 = self.create_sub_labels(MAX_NUM_LAB_SUB)
+
+        #crear botones
+        self.prev_button = QPushButton("Prev", self)
+        self.next_button = QPushButton("Next", self)
+
+        #crear spacers
+        self.sub_lab1_spacer_left  = QSpacerItem(0, 0, QSizePolicy.MinimumExpanding, QSizePolicy.Minimum)
+        self.sub_lab1_spacer_rigth = QSpacerItem(0, 0, QSizePolicy.MinimumExpanding, QSizePolicy.Minimum)
+        self.sub_lab2_spacer_left  = QSpacerItem(0, 0, QSizePolicy.MinimumExpanding, QSizePolicy.Minimum)
+        self.sub_lab2_spacer_rigth = QSpacerItem(0, 0, QSizePolicy.MinimumExpanding, QSizePolicy.Minimum)
+
+
+        # LLenar Menu de subtitulos
+        layout.addWidget(self.prev_button)
+        layout.addLayout(self.sub_VBox)
+        layout.addWidget(self.next_button)
+        self.sub_VBox.addLayout(self.sub_lab1_HBox)
+        self.sub_VBox.addLayout(self.sub_lab2_HBox)
+
+        self.sub_VBox.addWidget(self.test_label)
+
+
+        # subtitulos parte 1
+        self.sub_lab1_HBox.addSpacerItem(self.sub_lab1_spacer_left)
+        self.add_lab_widget(self.sub_lab1_HBox, self.labels_sub1)
+        self.sub_lab1_HBox.addSpacerItem(self.sub_lab1_spacer_rigth)
+
+        # subtitulos parte 2 
+        self.sub_lab2_HBox.addSpacerItem(self.sub_lab2_spacer_left)
+        self.add_lab_widget(self.sub_lab2_HBox, self.labels_sub2)
+        self.sub_lab2_HBox.addSpacerItem(self.sub_lab2_spacer_rigth)
+
+        # setear los tamanos adecuados de cada item del meu
+        self.sub_lab2_HBox.setSpacing(0)
+        self.sub_lab1_HBox.setSpacing(0)
+        self.prev_button.setMaximumSize(50, 50)
+        self.next_button.setMaximumSize(50, 50)
+
         
     def create_sub_labels(self, n):
         l = []
@@ -202,16 +219,16 @@ class MainWindow(QMainWindow):
 
     def change_seek_bar(self, value):
 
-        if value >= self.frame.start:
-            self.sub_text_lab1 = self.frame.txt
-            self.frame = self.list_frames.pop()
-            self.sub_text_lab2 =self.frame.txt
+        if value > self.frame2.end:
+            self.frame1, self.frame2 = self.list_frames.pop()
+            self.sub_text_lab1       = self.frame1.txt
+            self.sub_text_lab2       = self.frame2.txt
 
         (h,m,s,ms) = self.miles_minutes(value)
         time = "%d:%d:%d.%d" % (h,m,s,ms)
         self.label_time.setText(time)
         self.label_mi.setText(str(value))
-        self.label_end.setText(str(self.frame.end))
+        self.label_end.setText(str(self.frame2.end))
         
 
 
@@ -261,6 +278,18 @@ class MainWindow(QMainWindow):
         if event.type() == QEvent.MouseButtonDblClick:
             obj.setFullScreen(not obj.isFullScreen())
         return False
+
+    def keyPressEvent(self, event):
+        if type(event) == QtGui.QKeyEvent:
+            if event.key() == Qt.Key_Space:
+                print ("tecla space")
+            else:
+                print (event.key())
+                self.test_txt_label = self.test_txt_label + chr(event.key())
+                self.test_label.setText(self.test_txt_label)
+            event.accept()
+        else:
+            event.ignore()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
