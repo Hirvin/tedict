@@ -4,7 +4,7 @@
 
 import sys
 from functools import partial
-from PyQt5.QtCore import QEvent, QUrl, Qt
+from PyQt5.QtCore import QEvent, QUrl, Qt, QTimer
 from PyQt5.QtWidgets import (QApplication, QHBoxLayout, QMainWindow,
                              QWidget, QPushButton, QSlider,
                              QVBoxLayout, QLabel, QSizePolicy, QSpacerItem)
@@ -22,13 +22,20 @@ MY_PATH = "/home/lhvelasc/Documentos/MisProyectos/Tedict/"
 SUB_PATH = "Subtitles/sub.srt"
 VIDEO_PATH = "Videos/video.mp4"
 
+_STATE_PAUSE = 0
+_STATE_PLAY  = 1
+
 MAX_NUM_LAB_SUB = 120
+_TIMER_TICK = 500
+_NOTIFY_INTERVAL = 1000
 
 
 class MainWindow(QMainWindow):
     
     def __init__(self):
         super().__init__()
+
+        self.my_state = _STATE_PLAY
         
         # Controles principales para organizar la ventana.
         self.widget = QWidget(self)
@@ -46,21 +53,15 @@ class MainWindow(QMainWindow):
         self.label_time = QLabel()
         self.label_mi = QLabel()
         self.label_end = QLabel()
-
-        # globar var
-        self.sub_text_lab1 = ""
-        self.sub_text_lab2 = ""
-
-
         
 
         # inicializar subtitulos
         self.list_frames = sub.frames(MY_PATH + SUB_PATH)
-        self.frame1, self.frame2 = self.list_frames.pop()
+        self.text_frame = self.list_frames.pop()
         
         # Control de reproducción de video de Qt.
         self.video_widget = QVideoWidget(self)
-        self.media_player = QMediaPlayer()
+        self.media_player = QMediaPlayer(None,  QMediaPlayer.VideoSurface)
         self.media_player.setMedia(
             QMediaContent(QUrl.fromLocalFile(MY_PATH + VIDEO_PATH)))
         self.media_player.setVideoOutput(self.video_widget)
@@ -106,8 +107,8 @@ class MainWindow(QMainWindow):
 
         
         #self.set_sub_text(self.labels_sub2, self.frame.txt)
-        self.sub_text_lab1 = self.frame1.txt
-        self.sub_text_lab2 = self.frame2.txt
+        self.set_sub_text(self.labels_sub1, self.text_frame.f1.get_txt_conver_asteric())
+        self.set_sub_text(self.labels_sub2, self.text_frame.f2.get_txt_conver_asteric())
 
               
         # Conectar los eventos con sus correspondientes funciones.
@@ -123,8 +124,14 @@ class MainWindow(QMainWindow):
         self.bottom_layout.setContentsMargins(0, 0, 0, 0)
         self.widget.setLayout(self.layout)
         self.setCentralWidget(self.widget)
+
+        # setear Timer
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.timer_change_status)
+        self.timer.start(_TIMER_TICK)
         
         # Reproducir el video.
+        self.media_player.setNotifyInterval(_NOTIFY_INTERVAL)
         self.media_player.play()
 
     def create_sub_layout(self, layout):
@@ -132,10 +139,6 @@ class MainWindow(QMainWindow):
         self.sub_lab1_HBox = QHBoxLayout()
         self.sub_lab2_HBox = QHBoxLayout()
         self.sub_VBox      = QVBoxLayout()
-
-        self.test_label = QLabel()
-        self.test_txt_label = ""
-        self.test_label.setText(self.test_txt_label)
         
         #crear labels
         self.labels_sub1 = self.create_sub_labels(MAX_NUM_LAB_SUB)
@@ -144,6 +147,10 @@ class MainWindow(QMainWindow):
         #crear botones
         self.prev_button = QPushButton("Prev", self)
         self.next_button = QPushButton("Next", self)
+
+        self.prev_button.clicked.connect(self.click_prev)
+        self.next_button.clicked.connect(self.click_next)
+
 
         #crear spacers
         self.sub_lab1_spacer_left  = QSpacerItem(0, 0, QSizePolicy.MinimumExpanding, QSizePolicy.Minimum)
@@ -159,7 +166,7 @@ class MainWindow(QMainWindow):
         self.sub_VBox.addLayout(self.sub_lab1_HBox)
         self.sub_VBox.addLayout(self.sub_lab2_HBox)
 
-        self.sub_VBox.addWidget(self.test_label)
+        
 
 
         # subtitulos parte 1
@@ -217,25 +224,49 @@ class MainWindow(QMainWindow):
     def change_media_player(self, value):
         self.media_player.setPosition(value)
 
+    def timer_change_status(self):
+        #print ("timer")
+        if self.my_state == _STATE_PAUSE:
+            self.media_player.pause()
+            self.timer.stop()
+
     def change_seek_bar(self, value):
-
-        if value > self.frame2.end:
-            self.frame1, self.frame2 = self.list_frames.pop()
-            self.sub_text_lab1       = self.frame1.txt
-            self.sub_text_lab2       = self.frame2.txt
-
-        (h,m,s,ms) = self.miles_minutes(value)
-        time = "%d:%d:%d.%d" % (h,m,s,ms)
-        self.label_time.setText(time)
-        self.label_mi.setText(str(value))
-        self.label_end.setText(str(self.frame2.end))
-        
+        if self.my_state == _STATE_PLAY:
+            # detiene la ejecusion del video si el frame ya acabo
+            if value > self.text_frame.end:
+                self.my_state = _STATE_PAUSE
 
 
-        #self.label_sub1.setText(self.frame.txt)
-        self.set_sub_text(self.labels_sub1, self.sub_text_lab1)
-        self.set_sub_text(self.labels_sub2, self.sub_text_lab2)
-        self.seek_slider.setValue(value)
+        #if (value > self.text_frame.end and self.my_state == _STATE_PLAY):
+        #    print ("pasa")
+        #    self.media_player.pause()
+        #    self.my_state = _STATE_PAUSE
+            
+            #self.text_frame = self.list_frames.pop()
+            #if self.text_frame != None:
+            #    self.sub_text_lab1       = self.text_frame.txt1
+            #    self.sub_text_lab2       = self.text_frame.txt2
+            #else :
+            #    self.sub_text_lab1       = ""
+            #    self.sub_text_lab2       = ""
+            #    self.text_frame.end = 0
+
+            #print ("casa")
+
+            (h,m,s,ms) = self.miles_minutes(value)
+            time = "%d:%d:%d.%d" % (h,m,s,ms)
+            self.label_time.setText(time)
+            self.label_mi.setText(str(value))
+            self.label_end.setText(str(self.text_frame.end))
+            
+
+
+            #self.label_sub1.setText(self.frame.txt)
+            #self.set_sub_text(self.labels_sub1, self.sub_text_lab1)
+            #self.set_sub_text(self.labels_sub2, self.sub_text_lab2)
+            self.seek_slider.setValue(value)
+
+        return True
 
 # se modifico la duracion
     def change_duration(self, value):
@@ -251,6 +282,29 @@ class MainWindow(QMainWindow):
             self.media_player.play()
         else:
             self.media_player.pause()
+
+    def click_prev(self):
+        if self.my_state == _STATE_PLAY:
+            self.media_player.pause()
+        self.timer.stop()
+        self.media_player.setPosition(self.text_frame.start)
+        self.timer.start(_TIMER_TICK)
+        self.media_player.play()
+        self.my_state = _STATE_PLAY
+
+    def click_next(self):
+        if self.my_state == _STATE_PLAY:
+            self.media_player.pause()
+        self.timer.stop()
+        self.text_frame = self.list_frames.pop()
+        self.media_player.setPosition(self.text_frame.start)
+        self.timer.start(_TIMER_TICK)
+        self.media_player.play()
+        self.my_state = _STATE_PLAY
+
+        self.set_sub_text(self.labels_sub1, self.text_frame.f1.get_txt_conver_asteric())
+        self.set_sub_text(self.labels_sub2, self.text_frame.f2.get_txt_conver_asteric())
+
     
     def stop_clicked(self):
         """
@@ -284,9 +338,19 @@ class MainWindow(QMainWindow):
             if event.key() == Qt.Key_Space:
                 print ("tecla space")
             else:
-                print (event.key())
-                self.test_txt_label = self.test_txt_label + chr(event.key())
-                self.test_label.setText(self.test_txt_label)
+                #print (event.key())
+                if self.text_frame.new_key(event.key()) == True:
+                    print("cambiar al siguiente Frame")
+                    self.text_frame = self.list_frames.pop()
+                    if self.my_state == _STATE_PLAY:
+                        self.media_player.pause()
+                    self.media_player.setPosition(self.text_frame.start)
+                    self.timer.start(_TIMER_TICK)
+                    self.media_player.play()
+                    self.my_state = _STATE_PLAY
+
+                self.set_sub_text(self.labels_sub1, self.text_frame.f1.get_txt_conver_asteric())
+                self.set_sub_text(self.labels_sub2, self.text_frame.f2.get_txt_conver_asteric())
             event.accept()
         else:
             event.ignore()
