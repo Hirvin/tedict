@@ -29,163 +29,79 @@ MAX_NUM_LAB_SUB = 120
 _TIMER_TICK = 500
 _NOTIFY_INTERVAL = 1000
 
+class StatusLayout(QHBoxLayout):
+    def __init__(self):
+        super().__init__()
+        self.play_button = QPushButton("Pausa")
+        self.stop_button = QPushButton("Detener")
 
-class MainWindow(QMainWindow):
-    
+        #labels
+        self.frames = QLabel()
+        self.num_frames = QLabel()
+        self.aciertos = QLabel()
+        self.num_aciertos = QLabel()
+        self.fallos = QLabel()
+        self.num_fallos = QLabel()
+
+        #anadir elementos
+        self.addWidget(self.play_button)
+        self.addWidget(self.frames)
+        self.addWidget(self.num_frames)
+        self.addWidget(self.aciertos)
+        self.addWidget(self.num_aciertos)
+        self.addWidget(self.fallos)
+        self.addWidget(self.num_fallos)
+        self.addWidget(self.stop_button)
+
+        self.frames.setText("Frame")
+        self.num_frames.setText("0/31")
+        self.aciertos.setText("Aciertos")
+        self.num_aciertos.setText("0")
+        self.fallos.setText("Fallos")
+        self.num_fallos.setText("0")
+
+class SubtitleLayout(QHBoxLayout):
     def __init__(self):
         super().__init__()
 
-        self.my_state = _STATE_PLAY
-        
-        # Controles principales para organizar la ventana.
-        self.widget = QWidget(self)
-        self.layout = QVBoxLayout()
-        self.bottom_layout = QHBoxLayout()
+        #layouts
+        self.vLayout = QVBoxLayout()
+        self.HSub1Layout = QHBoxLayout()
+        self.HSub2Layout = QHBoxLayout()
 
-        # crear menu de los subtitulos
-        self.subitles_layout   = QHBoxLayout()
-        self.create_sub_layout(self.subitles_layout)
-        
-
-        
-        # time stuff
-        self.time_layout = QHBoxLayout()
-        self.label_time = QLabel()
-        self.label_mi = QLabel()
-        self.label_end = QLabel()
-        
-
-        # inicializar subtitulos
-        self.list_frames = sub.frames(MY_PATH + SUB_PATH)
-        self.text_frame = self.list_frames.pop()
-        
-        # Control de reproducción de video de Qt.
-        self.video_widget = QVideoWidget(self)
-        self.media_player = QMediaPlayer(None,  QMediaPlayer.VideoSurface)
-        self.media_player.setMedia(
-            QMediaContent(QUrl.fromLocalFile(MY_PATH + VIDEO_PATH)))
-        self.media_player.setVideoOutput(self.video_widget)
-        
-        # Botones de reproducción y pausa.
-        self.play_button = QPushButton("Pausa", self)
-        self.stop_button = QPushButton("Detener", self)
-        
-        # Deslizadores para el volumen y transición del video.
-        self.seek_slider = QSlider(Qt.Horizontal)
-        self.volume_slider = QSlider(Qt.Horizontal)
-        self.volume_slider.setRange(0, 100)
-        self.volume_slider.setValue(self.media_player.volume())
-        
-        self.volume_slider.sliderMoved.connect(self.media_player.setVolume)
-        
-        # actualizar la posicion 
-
-        self.seek_slider.sliderMoved.connect(self.change_media_player)
-        self.media_player.positionChanged.connect(self.change_seek_bar)
+        #labels
+        self.labelSub1  = self.create_sub_labels(MAX_NUM_LAB_SUB)
+        self.labelSub2  = self.create_sub_labels(MAX_NUM_LAB_SUB)
 
 
-        self.media_player.durationChanged.connect(self.change_duration)
-        
-        # Acomodar controles en la pantalla.
-        self.layout.addWidget(self.video_widget)
-        self.layout.addLayout(self.bottom_layout)
-        self.layout.addLayout(self.time_layout)
-        self.layout.addWidget(self.seek_slider)
-        self.layout.addLayout(self.subitles_layout)
+        #botones
+        self.prev_button = QPushButton("Prev")
+        self.next_button = QPushButton("Next")
 
+        # llenar main layout
+        self.addWidget(self.prev_button)
+        self.addLayout(self.vLayout)
+        self.addWidget(self.next_button)
 
-        self.bottom_layout.addWidget(self.play_button)
-        self.bottom_layout.addWidget(self.stop_button)
-        self.bottom_layout.addWidget(self.volume_slider)
-
-        # time stuff
-        self.time_layout.addWidget(self.label_time)
-        self.time_layout.addWidget(self.label_mi)
-        self.time_layout.addWidget(self.label_end)
-
-        
-
-        
-        #self.set_sub_text(self.labels_sub2, self.frame.txt)
-        self.set_sub_text(self.labels_sub1, self.text_frame.f1.get_txt_conver_asteric())
-        self.set_sub_text(self.labels_sub2, self.text_frame.f2.get_txt_conver_asteric())
-
-              
-        # Conectar los eventos con sus correspondientes funciones.
-        self.play_button.clicked.connect(self.play_clicked)
-        self.stop_button.clicked.connect(self.stop_clicked)
-        self.media_player.stateChanged.connect(self.state_changed)
-        
-        
-        # Personalizar la ventana.
-        self.setWindowTitle("Reproductor de video")
-        self.resize(800, 600)
-        self.layout.setContentsMargins(0, 0, 0, 0)
-        self.bottom_layout.setContentsMargins(0, 0, 0, 0)
-        self.widget.setLayout(self.layout)
-        self.setCentralWidget(self.widget)
-
-        # setear Timer
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.timer_change_status)
-        self.timer.start(_TIMER_TICK)
-        
-        # Reproducir el video.
-        self.media_player.setNotifyInterval(_NOTIFY_INTERVAL)
-        self.media_player.play()
-
-    def create_sub_layout(self, layout):
-        # crear layout para subtitulos
-        self.sub_lab1_HBox = QHBoxLayout()
-        self.sub_lab2_HBox = QHBoxLayout()
-        self.sub_VBox      = QVBoxLayout()
-        
-        #crear labels
-        self.labels_sub1 = self.create_sub_labels(MAX_NUM_LAB_SUB)
-        self.labels_sub2 = self.create_sub_labels(MAX_NUM_LAB_SUB)
-
-        #crear botones
-        self.prev_button = QPushButton("Prev", self)
-        self.next_button = QPushButton("Next", self)
-
-        self.prev_button.clicked.connect(self.click_prev)
-        self.next_button.clicked.connect(self.click_next)
-
-
-        #crear spacers
-        self.sub_lab1_spacer_left  = QSpacerItem(0, 0, QSizePolicy.MinimumExpanding, QSizePolicy.Minimum)
-        self.sub_lab1_spacer_rigth = QSpacerItem(0, 0, QSizePolicy.MinimumExpanding, QSizePolicy.Minimum)
-        self.sub_lab2_spacer_left  = QSpacerItem(0, 0, QSizePolicy.MinimumExpanding, QSizePolicy.Minimum)
-        self.sub_lab2_spacer_rigth = QSpacerItem(0, 0, QSizePolicy.MinimumExpanding, QSizePolicy.Minimum)
-
-
-        # LLenar Menu de subtitulos
-        layout.addWidget(self.prev_button)
-        layout.addLayout(self.sub_VBox)
-        layout.addWidget(self.next_button)
-        self.sub_VBox.addLayout(self.sub_lab1_HBox)
-        self.sub_VBox.addLayout(self.sub_lab2_HBox)
-
-        
-
-
-        # subtitulos parte 1
-        self.sub_lab1_HBox.addSpacerItem(self.sub_lab1_spacer_left)
-        self.add_lab_widget(self.sub_lab1_HBox, self.labels_sub1)
-        self.sub_lab1_HBox.addSpacerItem(self.sub_lab1_spacer_rigth)
-
-        # subtitulos parte 2 
-        self.sub_lab2_HBox.addSpacerItem(self.sub_lab2_spacer_left)
-        self.add_lab_widget(self.sub_lab2_HBox, self.labels_sub2)
-        self.sub_lab2_HBox.addSpacerItem(self.sub_lab2_spacer_rigth)
+        # llenar vertical layout
+        self.vLayout.addLayout(self.HSub1Layout)
+        self.vLayout.addLayout(self.HSub2Layout)
+        self.add_lab_widget(self.HSub1Layout, self.labelSub1)
+        self.add_lab_widget(self.HSub2Layout, self.labelSub2)
 
         # setear los tamanos adecuados de cada item del meu
-        self.sub_lab2_HBox.setSpacing(0)
-        self.sub_lab1_HBox.setSpacing(0)
+        self.HSub1Layout.setSpacing(0)
+        self.HSub2Layout.setSpacing(0)
         self.prev_button.setMaximumSize(50, 50)
         self.next_button.setMaximumSize(50, 50)
 
-        
+
+        # extras
+        self.set_sub_text(self.labelSub1, "Hola a todos")
+        self.set_sub_text(self.labelSub2, "Hola a todos")
+        #self.labelSub1.setText("Hola a todos")   
+        #self.labelSub2.setText("Karen")
+
     def create_sub_labels(self, n):
         l = []
         for i in range(n):
@@ -206,13 +122,117 @@ class MainWindow(QMainWindow):
             aux = MAX_NUM_LAB_SUB - len(txt)
             der = int(aux / 2)
             izq = int(aux - der)
-            #print ("izq = %d" % (izq))
-            #print ("der = %d" % (der))
 
         txt = " " * izq + txt + " " * der
-
         for i, t in enumerate(txt):
-            lab[i].setText(t)    
+            lab[i].setText(t)  
+
+
+
+
+
+class MainWindow(QMainWindow):
+    
+    def __init__(self):
+        super().__init__()
+
+        self.my_state = _STATE_PLAY
+        
+        # Controles principales para organizar la ventana.
+        self.widget = QWidget(self)
+        self.layout = QVBoxLayout()
+        self.bottom_layout = QHBoxLayout()
+
+        # status layout
+        self.statusLayout = StatusLayout()
+
+        # Sutitles layout
+        self.subLayout = SubtitleLayout()
+
+        # time stuff
+        self.time_layout = QHBoxLayout()
+        self.label_time = QLabel()
+        self.label_mi = QLabel()
+        self.label_end = QLabel()
+        
+        # inicializar subtitulos
+        self.list_frames = sub.frames(MY_PATH + SUB_PATH)
+        self.text_frame = self.list_frames.pop()
+        
+        # Control de reproducción de video de Qt.
+        self.video_widget = QVideoWidget(self)
+        self.media_player = QMediaPlayer(None,  QMediaPlayer.VideoSurface)
+        self.media_player.setMedia(
+            QMediaContent(QUrl.fromLocalFile(MY_PATH + VIDEO_PATH)))
+        self.media_player.setVideoOutput(self.video_widget)
+        
+        # Botones de reproducción y pausa.
+        
+        
+        # Deslizadores para el volumen y transición del video.
+        self.seek_slider = QSlider(Qt.Horizontal)
+        self.volume_slider = QSlider(Qt.Horizontal)
+        self.volume_slider.setRange(0, 100)
+        self.volume_slider.setValue(self.media_player.volume())
+        
+        self.volume_slider.sliderMoved.connect(self.media_player.setVolume)
+        
+        # actualizar la posicion 
+
+        self.seek_slider.sliderMoved.connect(self.change_media_player)
+        self.media_player.positionChanged.connect(self.change_seek_bar)
+
+
+        self.media_player.durationChanged.connect(self.change_duration)
+        
+        # Acomodar controles en la pantalla.
+        self.layout.addLayout(self.statusLayout)
+        self.layout.addWidget(self.video_widget)
+        self.layout.addLayout(self.bottom_layout)
+        self.layout.addLayout(self.time_layout)
+        self.layout.addWidget(self.seek_slider)
+
+        # andir layout
+        self.layout.addLayout(self.subLayout)
+        #conections
+        self.subLayout.prev_button.clicked.connect(self.click_prev)
+        self.subLayout.next_button.clicked.connect(self.click_next)
+
+        
+
+        self.bottom_layout.addWidget(self.volume_slider)
+
+        # time stuff
+        self.time_layout.addWidget(self.label_time)
+        self.time_layout.addWidget(self.label_mi)
+        self.time_layout.addWidget(self.label_end)
+
+        
+        #self.set_sub_text(self.labels_sub2, self.frame.txt)
+        self.subLayout.set_sub_text(self.subLayout.labelSub1, self.text_frame.f1.get_txt_conver_asteric())
+        self.subLayout.set_sub_text(self.subLayout.labelSub2, self.text_frame.f2.get_txt_conver_asteric())
+      
+        # Conectar los eventos con sus correspondientes funciones.
+        self.statusLayout.play_button.clicked.connect(self.play_clicked)
+        self.statusLayout.stop_button.clicked.connect(self.stop_clicked)
+        self.media_player.stateChanged.connect(self.state_changed)
+        
+        # Personalizar la ventana.
+        self.setWindowTitle("Reproductor de video")
+        self.resize(800, 600)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.bottom_layout.setContentsMargins(0, 0, 0, 0)
+        self.widget.setLayout(self.layout)
+        self.setCentralWidget(self.widget)
+
+        # setear Timer
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.timer_change_status)
+        self.timer.start(_TIMER_TICK)
+        
+        # Reproducir el video.
+        self.media_player.setNotifyInterval(_NOTIFY_INTERVAL)
+        self.media_player.play()
 
     def miles_minutes(self, value):
         s,ms= divmod(value, 1000)
@@ -302,8 +322,8 @@ class MainWindow(QMainWindow):
         self.media_player.play()
         self.my_state = _STATE_PLAY
 
-        self.set_sub_text(self.labels_sub1, self.text_frame.f1.get_txt_conver_asteric())
-        self.set_sub_text(self.labels_sub2, self.text_frame.f2.get_txt_conver_asteric())
+        self.subLayout.set_sub_text(self.subLayout.labelSub1, self.text_frame.f1.get_txt_conver_asteric())
+        self.subLayout.set_sub_text(self.subLayout.labelSub2, self.text_frame.f2.get_txt_conver_asteric())
 
     
     def stop_clicked(self):
@@ -321,8 +341,8 @@ class MainWindow(QMainWindow):
             QMediaPlayer.PlayingState: "Pausa",
             QMediaPlayer.StoppedState: "Reproducir"
         }
-        self.play_button.setText(states[newstate])
-        self.stop_button.setEnabled(newstate != QMediaPlayer.StoppedState)
+        self.statusLayout.play_button.setText(states[newstate])
+        self.statusLayout.stop_button.setEnabled(newstate != QMediaPlayer.StoppedState)
     
     def eventFilter(self, obj, event):
         """
@@ -349,8 +369,10 @@ class MainWindow(QMainWindow):
                     self.media_player.play()
                     self.my_state = _STATE_PLAY
 
-                self.set_sub_text(self.labels_sub1, self.text_frame.f1.get_txt_conver_asteric())
-                self.set_sub_text(self.labels_sub2, self.text_frame.f2.get_txt_conver_asteric())
+
+                self.subLayout.set_sub_text(self.subLayout.labelSub1, self.text_frame.f1.get_txt_conver_asteric())
+                self.subLayout.set_sub_text(self.subLayout.labelSub2, self.text_frame.f2.get_txt_conver_asteric())
+
             event.accept()
         else:
             event.ignore()
