@@ -31,7 +31,6 @@ class sub_text_frame():
             return False
         
         
-        print ("entra")
         self.f2.pop()
         return self.f2.is_buffer_empty()
        

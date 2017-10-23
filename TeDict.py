@@ -4,7 +4,7 @@
 
 import sys
 from functools import partial
-from PyQt5.QtCore import QEvent, QUrl, Qt, QTimer
+from PyQt5.QtCore import QEvent, QUrl, Qt, QTimer, pyqtSignal
 from PyQt5.QtWidgets import (QApplication, QHBoxLayout, QMainWindow,
                              QWidget, QPushButton, QSlider,
                              QVBoxLayout, QLabel, QSizePolicy, QSpacerItem)
@@ -15,6 +15,9 @@ from PyQt5.QtMultimediaWidgets import QVideoWidget
 import MyPaquets.subtitles as sub
 
 import PyQt5.QtGui as QtGui
+import re
+from google.cloud import translate
+
 
 
 # My definitions
@@ -28,6 +31,26 @@ _STATE_PLAY  = 1
 MAX_NUM_LAB_SUB = 120
 _TIMER_TICK = 500
 _NOTIFY_INTERVAL = 1000
+_DISABLE = 0
+_ENABLE = 1
+
+_TARGET_LANGUAGE = "es"
+
+class QLabelClickable(QLabel):
+    clicked = pyqtSignal(str)
+
+    def __init__(self, row, n_label):
+        super().__init__()
+        self.row = row
+        self.n_label = n_label
+        self.status = _DISABLE
+        self.word = '*'
+
+    def setWord(self, word):
+        self.word = word
+
+    def mouseReleaseEvent(self, ev):
+        self.clicked.emit(self.word)
 
 class StatusLayout(QHBoxLayout):
     def __init__(self):
@@ -70,8 +93,8 @@ class SubtitleLayout(QHBoxLayout):
         self.HSub2Layout = QHBoxLayout()
 
         #labels
-        self.labelSub1  = self.create_sub_labels(MAX_NUM_LAB_SUB)
-        self.labelSub2  = self.create_sub_labels(MAX_NUM_LAB_SUB)
+        self.labelSub1  = self.create_sub_labels(MAX_NUM_LAB_SUB, 0)
+        self.labelSub2  = self.create_sub_labels(MAX_NUM_LAB_SUB, 1)
 
 
         #botones
@@ -101,11 +124,12 @@ class SubtitleLayout(QHBoxLayout):
         self.set_sub_text(self.labelSub2, "Hola a todos")
         #self.labelSub1.setText("Hola a todos")   
         #self.labelSub2.setText("Karen")
+        self.l_txt = []
 
-    def create_sub_labels(self, n):
+    def create_sub_labels(self, n, row):
         l = []
         for i in range(n):
-            l.append(QLabel())
+            l.append(QLabelClickable(row, i))
         return l
 
     def add_lab_widget(self, parent, labs):
@@ -123,9 +147,35 @@ class SubtitleLayout(QHBoxLayout):
             der = int(aux / 2)
             izq = int(aux - der)
 
+
+        
+        self.l_txt = txt.split(' ')
+        anterior = ' '
         txt = " " * izq + txt + " " * der
-        for i, t in enumerate(txt):
-            lab[i].setText(t)  
+        for i, t in enumerate(txt):            
+            word = self.get_word(t, anterior)
+            lab[i].setText(t)
+            lab[i].setWord(word)
+            anterior = t
+
+    def get_word(self, actual, anterior):
+        if self.l_txt == []:
+            return '*'
+        if ((anterior == ' ') and (actual != ' ')):
+            return re.sub("[,]", '', self.l_txt[0])
+            
+
+        if ((anterior != ' ') and (actual == ' ')):
+            self.l_txt.pop(0)
+            return '*'
+
+        if ((anterior!=' ') and (actual != ' ')):
+            return re.sub("[,]", '', self.l_txt[0])
+
+        return '*'
+
+
+
 
 
 
@@ -135,6 +185,10 @@ class MainWindow(QMainWindow):
     
     def __init__(self):
         super().__init__()
+
+        # iniciando conexio con google
+        self.translate_client = translate.Client()
+
 
         self.my_state = _STATE_PLAY
         
@@ -216,6 +270,9 @@ class MainWindow(QMainWindow):
         self.statusLayout.play_button.clicked.connect(self.play_clicked)
         self.statusLayout.stop_button.clicked.connect(self.stop_clicked)
         self.media_player.stateChanged.connect(self.state_changed)
+
+        # conectando labels
+        self.connect_labels()
         
         # Personalizar la ventana.
         self.setWindowTitle("Reproductor de video")
@@ -233,6 +290,15 @@ class MainWindow(QMainWindow):
         # Reproducir el video.
         self.media_player.setNotifyInterval(_NOTIFY_INTERVAL)
         self.media_player.play()
+
+    def connect_labels(self):
+        for element in self.subLayout.labelSub1:
+            element.clicked.connect(self.label_cliked)
+
+        for element in self.subLayout.labelSub2:
+            element.clicked.connect(self.label_cliked)
+
+
 
     def miles_minutes(self, value):
         s,ms= divmod(value, 1000)
@@ -360,7 +426,7 @@ class MainWindow(QMainWindow):
             else:
                 #print (event.key())
                 if self.text_frame.new_key(event.key()) == True:
-                    print("cambiar al siguiente Frame")
+                    #print("cambiar al siguiente Frame")
                     self.text_frame = self.list_frames.pop()
                     if self.my_state == _STATE_PLAY:
                         self.media_player.pause()
@@ -376,6 +442,13 @@ class MainWindow(QMainWindow):
             event.accept()
         else:
             event.ignore()
+
+    def label_cliked(self, word):
+        #print(word)
+        result = self.translate_client.translate(word, target_language=_TARGET_LANGUAGE)
+        txt = "%s = %s" %(result['input'], result['translatedText'])
+        print(txt)
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
