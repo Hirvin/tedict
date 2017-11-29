@@ -1,6 +1,14 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
+# inicializar el hambiente
+#  git push -u origin master
+# instalar para python 3
+#virtualenv -p python3 envname
+# activar 
+#source bin/activate
+# desactivar
+#$ deactivate
 
 import sys
 from functools import partial
